@@ -1,4 +1,5 @@
 <?php
+error_reporting(0);
 require_once 'config.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -26,7 +27,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $age = intval($_POST["age"]);
             $gender = $_POST["gender"];
             if ($insert_stmt->execute()) {
-                echo "Registration successful. <a href='login.php'>Go to login</a>";
+                $go_to_login = true;
             } else {
                 echo "Error: " . $insert_stmt->error;
             }
@@ -70,6 +71,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </select>
         <a href="login.php" class="login-link">Got an account? Login here.</a>
         <button class="btn btn-lg btn-primary btn-block" type="submit">Submit</button>
+        <?php if($go_to_login): ?>
+            <a href='login.php'>Registration successful. Go to login</a>
+        <?php endif; ?>
     </form>
 </body>
 </html>

@@ -55,6 +55,7 @@ if (isset($_SESSION["user_id"])) {
             <p class="lead">
                 <?php if ($logged_in): ?>
                     <a href="dashboard.php" class="btn btn-lg btn-secondary">Dashboard</a>
+                    <a href="match.php" class="btn btn-lg btn-secondary">Match now</a>
                 <?php else: ?>
                     <a href="register.php" class="btn btn-lg btn-secondary">Register</a>
                     <a href="login.php" class="btn btn-lg btn-secondary">Login</a>
