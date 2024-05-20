@@ -7,7 +7,5 @@ COPY www /var/www/html
 COPY run.sh /root
 RUN chmod +x /root/run.sh
 
-#COPY php.ini-production /usr/local/etc/php/php.ini
-
 WORKDIR /var/www/html
 ENTRYPOINT /root/run.sh

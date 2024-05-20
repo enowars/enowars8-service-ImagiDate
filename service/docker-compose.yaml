@@ -11,6 +11,13 @@ services:
       - db
     
 
+  api:
+    build:
+      context: ./api
+    container_name: api_server
+    expose:
+      - "5000"
+    
   db:
     image: mysql:8.0
     volumes:
@@ -20,8 +27,8 @@ services:
       MYSQL_DATABASE: date
       MYSQL_USER: date
       MYSQL_PASSWORD: somepassword
-    ports:
-      - 5000:3306
+    #ports:
+    #  - 5000:3306
 
 volumes:
   mysql_db:

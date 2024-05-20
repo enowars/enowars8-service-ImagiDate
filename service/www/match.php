@@ -1,9 +1,76 @@
+<?php
+session_start();
+error_reporting(0);
+if (!isset($_SESSION["user_id"])) {
+    header("Location: login.php");
+    exit();
+}
+
+function yaml_dump(array $data){
+    $result = "";
+    foreach ($data as $key => $value){
+        $result .= "$key: $value\n";
+    }
+    return $result;
+}
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $username = $_POST["username"];
+    $age = $_POST["age"];
+    $gender = $_POST["gender"];
+    $requested_username = $_POST["requested_username"];
+    $punchline = $_POST["punchline"];
+
+    if($username != $_SESSION["username"]){
+        echo "You need to provide your actual username, not some random shit";
+        exit();
+    }
+
+    $ALLOWED_LEN = 20;
+    if(strlen($username) > $ALLOWED_LEN || strlen($gender) > $ALLOWED_LEN
+    || strlen($requested_username) > $ALLOWED_LEN){
+        echo "Your Input seems to be wrong. Some parameter was too large";
+        exit();
+    }
+
+    $data = [
+        'username' => $username,
+        'age' => $age,
+        'gender' => $gender,
+        'requested_username' => $requested_username,
+        'punchline' => $punchline,
+    ];
+
+    $yaml = yaml_dump($data);
+    $yaml_file = 'data.yaml';
+    file_put_contents($yaml_file, $yaml);
+
+    $api_url = 'http://api:5000/test_my_luck';
+    $ch = curl_init($api_url);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, [
+        'file' => new CURLFile($yaml_file)
+    ]);
+
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    if ($response === false) {
+        $show_resp = false;
+    } else {
+        $show_resp = true;
+    }
+    unlink($yaml_file);
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YAML Upload Form</title>
+    <title>match</title>
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles/match.css">
 </head>
@@ -28,6 +95,9 @@
             <textarea type="text" class="form-control" id="punchline" name="punchline" placeholder="Your punchline" required></textarea>
             <br>
             <button type="submit" class="btn btn-lg btn-primary btn-block">Submit</button>
+            <?php if($show_resp): ?>
+                <a href='check_response.php'>Data sent succesfully! Checkout your crushes reponse!</a>
+            <?php endif; ?>
         </form>
     </div>
 

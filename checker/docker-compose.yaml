@@ -1,17 +1,17 @@
 version: '2.1'
 
 services:
-  ImagiDate-checker:
+  imagidate-checker:
     build: .
     # The checker runs a HTTP interfaces, so we need to map port 3031 to the outside (port 8000).
     ports:
       - 5008:8000
     environment:
       - MONGO_ENABLED=1
-      - MONGO_HOST=ImagiDate-mongo
+      - MONGO_HOST=imagidate-mongo
       - MONGO_PORT=27017
-      - MONGO_USER=ImagiDate
-      - MONGO_PASSWORD=ImagiDate
+      - MONGO_USER=imagidate
+      - MONGO_PASSWORD=imagidate
     mem_limit: 1G
     memswap_limit: 2G
     ulimits:
@@ -22,15 +22,15 @@ services:
         soft: 4000
         hard: 4000
   # The python checkerlib requires a mongo db!
-  ImagiDate-mongo:
+  imagidate-mongo:
     image: mongo
     #ports:
     #  - 27017:27017
     volumes:
-      - ./data:/data/db
+      - data_db:/data/db
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ImagiDate
-      MONGO_INITDB_ROOT_PASSWORD: ImagiDate
+      MONGO_INITDB_ROOT_USERNAME: imagidate
+      MONGO_INITDB_ROOT_PASSWORD: imagidate
     mem_limit: 1G
     memswap_limit: 2G
     ulimits:
@@ -40,3 +40,6 @@ services:
       nproc:
         soft: 4000
         hard: 4000
+
+volumes:
+  data_db:
