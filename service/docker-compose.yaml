@@ -22,13 +22,14 @@ services:
     image: mysql:8.0
     volumes:
       - mysql_db:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: date
       MYSQL_USER: date
       MYSQL_PASSWORD: somepassword
-    #ports:
-    #  - 5000:3306
+    ports:
+      - 5000:3306
 
 volumes:
   mysql_db:
