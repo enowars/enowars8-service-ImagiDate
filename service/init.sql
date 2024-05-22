@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS comments (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
+-- https://github.com/enowars/bambi-service-testify/blob/main/service/mysql/sql-scripts/CreateTable.sql
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'date'@'%';
 GRANT SELECT, INSERT ON date.* TO 'date'@'%';
 FLUSH PRIVILEGES;

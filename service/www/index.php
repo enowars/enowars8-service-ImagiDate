@@ -50,7 +50,7 @@ if (isset($_SESSION["user_id"])) {
                 <img class="mb-4" src="/images/logo.png" alt="" width="144" height="144">
             </a>
             <h1 class="cover-heading">Welcome to ImagiDate!</h1>
-            <p class="lead">Here you can finally get to date your fav fincional character! What are you waiting for? go
+            <p class="lead">Here you can finally get to date your fav fictional character! What are you waiting for? go
                 register now and match with your soulmate!</p>
             <p class="lead">
                 <?php if ($logged_in): ?>
