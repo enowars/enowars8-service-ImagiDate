@@ -28,6 +28,7 @@ services:
       MYSQL_DATABASE: date
       MYSQL_USER: date
       MYSQL_PASSWORD: somepassword
+      MYSQL_EVENT_SCHEDULER: 'ON'
     ports:
       - 5000:3306
 

@@ -25,6 +25,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $show_resp = false;
     } else {
         $show_resp = true;
+        $response_data = json_decode($response, true);
     }
 }
 ?>
@@ -50,10 +51,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <label for="username" class="sr-only">Username</label>
             <input type="text" class="form-control" id="username" name="username" placeholder="Username" maxlength="20" required>
             <button type="submit" class="btn btn-lg btn-primary btn-block">Submit</button>
-            <?php if($show_resp): ?>
-                <p><?php echo $response ?></p>
-            <?php endif; ?>
         </form>
+        <?php if($show_resp && !empty($response_data)): ?>
+            <table class="table table-striped mt-4" style="color: white">
+                <thead>
+                    <tr>
+                        <th scope="col">Key</th>
+                        <th scope="col">Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($response_data as $key => $value): ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($key); ?></td>
+                            <td><?php echo htmlspecialchars($value); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
