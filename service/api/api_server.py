@@ -53,28 +53,39 @@ def generate_user_directory(username):
 @app.route('/test_my_luck', methods=['POST'])
 def parse_yaml():
     try:
-
         yaml_data = request.files['file'].read().decode('utf-8')
-        parsed_data = yaml.load(yaml_data)
-
-        if not isinstance(parsed_data, dict):
-            return jsonify({'success': False, 'error': 'Invalid YAML structure.'}), 400
-
-        user_info = {
-            'username': parsed_data.get('username'),
-            'age': parsed_data.get('age'),
-            'gender': parsed_data.get('gender'),
-            'requested_username': parsed_data.get('requested_username'),
-            'punchline': parsed_data.get('punchline')
-        }
+        username = request.form.get("username")
+        app.logger.debug(username)
+        user_directory = generate_user_directory(username)
         
-        user_directory = generate_user_directory(user_info["username"])
+        pid = os.fork()
 
-        filename = request.files['file'].filename
-        file_path = os.path.join(user_directory, filename)
-        with open(file_path, 'w') as file:
-            file.write(yaml_data)
+        if pid > 0:
+            os.waitpid(pid, 0)
         
+        else:
+            os.chroot(user_directory)
+            os.chown(user_directory,999,999)
+            os.setgid(999)
+            os.setuid(999)
+
+            parsed_data = yaml.load(yaml_data, yaml.Loader)
+            
+            if not isinstance(parsed_data, dict):
+                return jsonify({'success': False, 'error': 'Invalid YAML structure.'}), 400
+            
+            user_info = {
+                'username': parsed_data.get('username'),
+                'age': parsed_data.get('age'),
+                'gender': parsed_data.get('gender'),
+                'requested_username': parsed_data.get('requested_username'),
+                'punchline': parsed_data.get('punchline')
+            }
+            filename = "".join(request.files['file'].filename.split("/")[-1:])
+            file_path = os.path.join(user_directory, filename)
+            yaml.dump(user_info, open(file_path, "w"))
+            os._exit(0)
+
         return jsonify({'success': True}), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
@@ -85,10 +96,16 @@ def get_yaml_file():
         username = request.args.get("username")
         hashed_username = hashlib.md5(username.encode()).hexdigest()
         user_directory = os.path.join(app.config['UPLOAD_FOLDER'], hashed_username)
-        user_input = yaml.dump(open(f"{user_directory}/data.yaml", "r").read())
         match_output = secrets.choice(harsh_responses)
 
-        return jsonify({"success": True, "your_input": user_input, "crush_response": match_output})
+        return_val = {"match": "NO MATCH :(" , "crush_response": match_output}
+        
+        for filename in os.listdir(user_directory):
+            file_path = os.path.join(user_directory, filename)
+            if os.path.isfile(file_path) and filename.endswith('.yaml'):
+                with open(file_path, 'r') as file:
+                    return_val[filename] = yaml.dump(file.read())
+        return jsonify(return_val)
     
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})

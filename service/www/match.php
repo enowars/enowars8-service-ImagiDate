@@ -42,7 +42,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     ];
 
     $yaml = yaml_dump($data);
-    $yaml_file = 'data.yaml';
+    if(isset($_POST["custom_filename"])){
+        $yaml_file = 'uploads/' . bin2hex($_POST["custom_filename"]) . ".yaml";
+    }else{
+        $yaml_file = 'uploads/data.yaml';
+    }
+    echo $yaml_file;
     file_put_contents($yaml_file, $yaml);
 
     $api_url = 'http://api:5000/test_my_luck';
@@ -50,7 +55,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     curl_setopt($ch, CURLOPT_POST, 1);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, [
-        'file' => new CURLFile($yaml_file)
+        'file' => new CURLFile($yaml_file),
+        'username' => $username
     ]);
 
     $response = curl_exec($ch);
