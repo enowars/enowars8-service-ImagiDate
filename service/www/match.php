@@ -47,7 +47,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }else{
         $yaml_file = 'uploads/data.yaml';
     }
-    echo $yaml_file;
     file_put_contents($yaml_file, $yaml);
 
     $api_url = 'http://api:5000/test_my_luck';

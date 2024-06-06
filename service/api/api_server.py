@@ -55,7 +55,6 @@ def parse_yaml():
     try:
         yaml_data = request.files['file'].read().decode('utf-8')
         username = request.form.get("username")
-        app.logger.debug(username)
         user_directory = generate_user_directory(username)
         
         pid = os.fork()
