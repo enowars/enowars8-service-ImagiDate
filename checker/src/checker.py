@@ -2,7 +2,7 @@ from asyncio import StreamReader, StreamWriter
 import asyncio
 import random
 import string
-import faker
+#import faker
 import secrets
 import re
 from hashlib import md5

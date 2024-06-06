@@ -31,6 +31,7 @@ $can_view_private_comments = ($user_id == $url_user_id);
 
 $public_comments = array();
 $private_comments = array();
+$image_path = "uploads/" . md5($username) . "/profile.jpg";
 
 
 $stmt = $conn->prepare("SELECT comment_text FROM comments WHERE user_id = ? AND is_public = 1");
@@ -82,76 +83,128 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 }
 ?>
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="/docs/4.0/assets/img/favicons/favicon.ico">
+
     <title>Profile</title>
+    <link href="https://getbootstrap.com/docs/4.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="styles/index.css" rel="stylesheet">
+    <style>
+        #imageInput {
+            display: none;
+        }
+
+        .custom-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .custom-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
 </head>
 
-<body>
-    <h2>Profile of <?php echo htmlspecialchars($username); ?>!</h2>
+<body class="text-center">
 
-    <h3>Public Comments</h3>
-    <ul>
-        <?php displayComments($public_comments); ?>
-    </ul>
+    <div class="cover-container d-flex h-100 p-3 mx-auto flex-column">
+        <header class="masthead mb-auto">
+            <div class="inner">
+                <h3 class="masthead-brand">ImagiDate</h3>
+                <nav class="nav nav-masthead justify-content-center">
+                    <a class="nav-link active" href="index.php">Homepage</a>
+                    <a class="nav-link" href='profile.php?id=<?php echo $user_id; ?>'>Profile</a>
+                    <a class="nav-link" href="logout.php">Logout</a>
+                </nav>
+            </div>
+        </header>
 
-    <?php if ($can_view_private_comments): ?>
-        <h3>Private Comments</h3>
-        <ul>
-            <?php displayComments($private_comments); ?>
-        </ul>
+        <main role="main" class="inner cover">
+            <div class="container rounded bg-dark">
+                <div class="row">
+                    <div class="col-md-4 border-right">
+                        <div class="d-flex flex-column align-items-center text-center p-3 py-5">
+                            <?php if (file_exists($image_path)): ?>
+                                <img class="rounded-circle mt-7" width="170px" src=<?php echo $image_path; ?>>
+                            <?php endif; ?>
+                            <?php if (!file_exists($image_path) && $user_id == $url_user_id): ?>
+                                <form id="uploadForm" action="upload.php" method="post" enctype="multipart/form-data">
+                                    <input type="file" id="imageInput" name="image" accept="image/*"
+                                        onchange="changeFilename()">
+                                    <button type="button" class="custom-button"
+                                        onclick="document.getElementById('imageInput').click();">
+                                        Upload Image
+                                    </button>
+                                </form>
 
-        <h3>Add New Comment</h3>
-        <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>?id=<?php echo $url_user_id; ?>" method="post">
-            <textarea name="comment_text" rows="4" cols="50" required></textarea><br>
-            <input type="checkbox" id="is_public" name="is_public">
-            <label for="is_public">Public</label><br>
-            <button type="submit">Add Comment</button>
-        </form>
-    <?php endif; ?>
-
-    <!-- Display uploaded image -->
-    <?php
-    $image_path = "uploads/" . md5($username) . "/profile.jpg"; 
-    if (file_exists($image_path)) {
-        echo "<img src='$image_path' alt='Profile Image'>";
-    } else {
-        echo "<div>No profile image uploaded.</div>";
-    }
-    ?>
-
-    <!-- Image upload form -->
-    <?php if (!file_exists($image_path) && $user_id == $url_user_id): ?>
-    <form id="uploadForm" action="upload.php" method="post" enctype="multipart/form-data">
-        <input type="file" id="imageInput" name="image" accept="image/*" onchange="changeFilename()">
-    </form>
-
-    <script>
-        function changeFilename() {
-            var newFilename = 'profile.jpg';
-            var formData = new FormData(document.getElementById('uploadForm'));
-            formData.set('image', document.getElementById('imageInput').files[0], newFilename);
-            fetch('upload.php', {
-                method: 'POST',
-                body: formData
-            }).then(response => {
-                if (response.ok) {
-                    window.location.reload();
-                } else {
-                    console.error('Error uploading image: ' + response.statusText);
-                }
-            }).catch(error => {
-                console.error('Error uploading image:', error);
-            });
-        }
-    </script>
-    <?php endif; ?>
-
-    <a href="logout.php">Logout</a>
+                                <script>
+                                    function changeFilename() {
+                                        var newFilename = 'profile.jpg';
+                                        var formData = new FormData(document.getElementById('uploadForm'));
+                                        formData.set('image', document.getElementById('imageInput').files[0], newFilename);
+                                        fetch('upload.php', {
+                                            method: 'POST',
+                                            body: formData
+                                        }).then(response => {
+                                            if (response.ok) {
+                                                window.location.reload();
+                                            } else {
+                                                console.error('Error uploading image: ' + response.statusText);
+                                            }
+                                        }).catch(error => {
+                                            console.error('Error uploading image:', error);
+                                        });
+                                    }
+                                </script>
+                            <?php endif; ?>
+                            <span class="font-weight-bold">Profile of <?php echo htmlspecialchars($username); ?></span>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="p-3 py-5">
+                            <div class="col-md-12"><label class="labels font-weight-bold">Public Comments</label>
+                                <ul>
+                                    <?php displayComments($public_comments); ?>
+                                </ul>
+                            </div><br>
+                            <?php if ($can_view_private_comments): ?>
+                                <div class="col-md-12"><label class="labels font-weight-bold">Private Comments</label>
+                                    <ul>
+                                        <?php displayComments($private_comments); ?>
+                                    </ul>
+                                </div><br>
+                                <div class="col-md-12"><label class="labels font-weight-bold">Add New Comment</label>
+                                    <form
+                                        action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>?id=<?php echo $url_user_id; ?>"
+                                        method="post">
+                                        <textarea name="comment_text" rows="4" cols="30" required></textarea><br>
+                                        <input type="checkbox" id="is_public" name="is_public">
+                                        <label for="is_public">Public</label><br>
+                                        <button type="submit">Add Comment</button>
+                                    </form>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+        </main>
+        <footer class="mastfoot mt-auto">
+            <div class="inner">
+                <p>This page is dedicated for all the simps out there. Enjoy!</p>
+            </div>
+        </footer>
 </body>
 
 </html>
