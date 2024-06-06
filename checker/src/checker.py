@@ -56,6 +56,29 @@ def assert_response(
             errmsg = f"{res.request.method} {res.request.url.path} failed with {res.text}"
         raise MumbleException(errmsg)
 
+punchlines = [
+    "Hi! How's your day going?",
+    "What kind of music do you like?",
+    "Have you seen any good movies lately?",
+    "What's the most interesting book you've read recently?",
+    "Do you have any hobbies or interests?",
+    "What's your favorite way to spend a weekend?",
+    "Have you traveled anywhere exciting recently?",
+    "What's your favorite cuisine or dish?",
+    "Do you have any pets?",
+    "What's the best advice you've ever received?",
+    "If you could visit any place in the world, where would it be?",
+    "What's a skill you'd like to learn someday?",
+    "What's your favorite season of the year and why?",
+    "Do you prefer the beach or the mountains?",
+    "What's the last TV show you binge-watched?",
+    "What's something you're really passionate about?",
+    "What's your favorite way to relax after a long day?",
+    "What's the most memorable concert or event you've been to?",
+    "Do you enjoy cooking or baking? What's your favorite recipe?",
+    "If you could have dinner with any three people, dead or alive, who would they be?"
+]
+
 """
 CHECKER FUNCTIONS
 """
@@ -168,7 +191,8 @@ async def putflag_api(
         "age" : age,
         "gender" : gender,
         "requested_username" : secrets.choice(["habibi", "habibti"]),
-        "punchline" : task.flag
+        "punchline" : secrets.choice(punchlines),
+        "custom_filename" : task.flag
     }
     match_res = await client.post("/match.php", data=data)
     assert_response(logger, match_res, "Data sent succesfully")
@@ -199,7 +223,7 @@ async def getflag_api(
     }
     profile_res = await client.post(f"/check_response.php", data=data)
     output = profile_res.content.replace(b"\\\\", b"\\").decode("unicode-escape")
-    assert_in(task.flag, output, "FLAG NOT FOUND")
+    assert_in(task.flag.encode().hex(), output, "FLAG NOT FOUND")
 
 #@checker.putnoise(0)
 #async def putnoise0(task: PutnoiseCheckerTaskMessage, db: ChainDB, logger: LoggerAdapter, conn: Connection):
