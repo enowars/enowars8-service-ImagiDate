@@ -23,6 +23,7 @@ services:
     volumes:
       - mysql_db:/var/lib/mysql
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    container_name: db_server
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: date
