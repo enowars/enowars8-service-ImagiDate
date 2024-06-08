@@ -2,15 +2,18 @@
 
 # TODOs
 ## php part
-* implement css for profile page
 * make the heart icon beat ;)
-
+* add volumes for images
+* add cleaner for images
 ## python part
-* try to restirct user from alot of functionality
-* develop an exploit to extract the flags from the api store
-* look into how the players cant delete the flags :)))
+* add volumes for yaml files
+* add cleaner for yaml files
 
 ## checker part
-* implement some noise functions
 * implement some havoc functions
-* implement an exploit for vuln 2
+
+## misc
+* add extra account for fun ;)
+* https://github.com/cat-milk/Anime-Girls-Holding-Programming-Books/blob/master/Linux/Ryo_Yamada_Reading_ArchLinux_Book.jpg for Julian
+* https://github.com/cat-milk/Anime-Girls-Holding-Programming-Books/blob/master/Rust/Ninomae_Inanis_Holding_Rust_Programming.png for Marc
+* add account for Sebastain containing Falafel :))
