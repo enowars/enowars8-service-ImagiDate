@@ -431,104 +431,80 @@ async def getnoise_match(task: GetnoiseCheckerTaskMessage, db: ChainDB, logger: 
     profile_res = await client.post(f"/check_response.php", data=data)
     assert_in(name1.encode().hex(), profile_res.text, "hex of filename not found")
     assert_in(name2.encode().hex(), profile_res.text, "hex of filename not found")
+
+
+# check index.php
+@checker.havoc(0)
+async def havoc_index(task: HavocCheckerTaskMessage, logger: LoggerAdapter, client: AsyncClient):
     
-#@checker.havoc(0)
-#async def havoc0(task: HavocCheckerTaskMessage, logger: LoggerAdapter, conn: Connection):
-#    logger.debug(f"Connecting to service")
-#    welcome = await conn.reader.readuntil(b">")
-#
-#    # In variant 0, we'll check if the help text is available
-#    logger.debug(f"Sending help command")
-#    conn.writer.write(f"help\n".encode())
-#    await conn.writer.drain()
-#    helpstr = await conn.reader.readuntil(b">")
-#
-#    for line in [
-#        "This is a notebook service. Commands:",
-#        "reg USER PW - Register new account",
-#        "log USER PW - Login to account",
-#        "set TEXT..... - Set a note",
-#        "user  - List all users",
-#        "list - List all notes",
-#        "exit - Exit!",
-#        "dump - Dump the database",
-#        "get ID",
-#    ]:
-#        assert_in(line.encode(), helpstr, "Received incomplete response.")
-#
-#@checker.havoc(1)
-#async def havoc1(task: HavocCheckerTaskMessage, logger: LoggerAdapter, conn: Connection):
-#    logger.debug(f"Connecting to service")
-#    welcome = await conn.reader.readuntil(b">")
-#
-#    # In variant 1, we'll check if the `user` command still works.
-#    username = "".join(
-#        random.choices(string.ascii_uppercase + string.digits, k=12)
-#    )
-#    password = "".join(
-#        random.choices(string.ascii_uppercase + string.digits, k=12)
-#    )
-#
-#    # Register and login a dummy user
-#    await conn.register_user(username, password)
-#    await conn.login_user(username, password)
-#
-#    logger.debug(f"Sending user command")
-#    conn.writer.write(f"user\n".encode())
-#    await conn.writer.drain()
-#    ret = await conn.reader.readuntil(b">")
-#    if not b"User 0: " in ret:
-#        raise MumbleException("User command does not return any users")
-#
-#    if username:
-#        assert_in(username.encode(), ret, "Flag username not in user output")
-#
-#    # conn.writer.close()
-#    # await conn.writer.wait_closed()
-#
-#@checker.havoc(2)
-#async def havoc2(task: HavocCheckerTaskMessage, logger: LoggerAdapter, conn: Connection):
-#    logger.debug(f"Connecting to service")
-#    welcome = await conn.reader.readuntil(b">")
-#
-#    # In variant 2, we'll check if the `list` command still works.
-#    username = "".join(
-#        random.choices(string.ascii_uppercase + string.digits, k=12)
-#    )
-#    password = "".join(
-#        random.choices(string.ascii_uppercase + string.digits, k=12)
-#    )
-#    randomNote = "".join(
-#        random.choices(string.ascii_uppercase + string.digits, k=36)
-#    )
-#
-#    # Register and login a dummy user
-#    await conn.register_user(username, password)
-#    await conn.login_user(username, password)
-#
-#    logger.debug(f"Sending command to save a note")
-#    conn.writer.write(f"set {randomNote}\n".encode())
-#    await conn.writer.drain()
-#    await conn.reader.readuntil(b"Note saved! ID is ")
-#
-#    try:
-#        noteId = (await conn.reader.readuntil(b"!\n>")).rstrip(b"!\n>").decode()
-#    except Exception as ex:
-#        logger.debug(f"Failed to retrieve note: {ex}")
-#        raise MumbleException("Could not retrieve NoteId")
-#
-#    assert_equals(len(noteId) > 0, True, message="Empty noteId received")
-#
-#    logger.debug(f"{noteId}")
-#
-#    logger.debug(f"Sending list command")
-#    conn.writer.write(f"list\n".encode())
-#    await conn.writer.drain()
-#
-#    data = await conn.reader.readuntil(b">")
-#    if not noteId.encode() in data:
-#        raise MumbleException("List command does not work as intended")
-#
+    index_res = await client.get("/index.php")
+    assert_in("Register", index_res.text)
+    assert_in("Login", index_res.text)
+
+    username, password = await register_user(logger, client)
+    login_res = await login_user(username,password, logger, client)
+
+    index_res = await client.get("/index.php")
+    assert_in("Dashboard", index_res.text)
+    assert_in("Match now", index_res.text)
+
+# check dashboard.php
+@checker.havoc(1)
+async def havoc1(task: HavocCheckerTaskMessage, logger: LoggerAdapter, client: AsyncClient):
+    
+    dashboard_res = await client.get("/dashboard.php", follow_redirects=True)
+    assert_in("Login", dashboard_res.text)
+
+    username, password = await register_user(logger, client)
+    login_res = await login_user(username,password, logger, client)
+
+    dashboard_res = await client.get("/dashboard.php", follow_redirects=True)
+    assert_in("List of users", dashboard_res.text)
+
+
+@checker.havoc(2)
+async def havoc_simulate_all(task: HavocCheckerTaskMessage, logger: LoggerAdapter, client: AsyncClient):
+
+    index_res = await client.get("/index.php")
+    username, password = await register_user(logger, client)
+    login_res = await login_user(username,password, logger, client)
+
+    user_id = get_user_id(login_res)
+
+    dashboard_res = await client.get("/dashboard.php", follow_redirects=True)
+    profile_res = await client.get(f"/profile.php?id={user_id}")
+
+    comment_1 = secrets.choice(life_facts)
+    comment_2 = secrets.choice(life_facts)
+    comment_3 = secrets.choice(private_facts)
+    comment_4 = secrets.choice(private_facts)
+
+    await post_comment(comment_1, True, user_id, logger, client)
+    await post_comment(comment_2, True, user_id, logger, client)
+    await post_comment(comment_3, False, user_id, logger, client)
+    await post_comment(comment_4, False, user_id, logger, client)
+
+    await upload_image(logger, client)
+
+    await request_match(username, secrets.choice(punchlines), "habibi", logger, client)
+    data = {
+        "username" : username
+    }
+    profile_res = await client.post(f"/check_response.php", data=data)
+    assert_in("habibi".encode().hex(), profile_res.text, "hex of filename not found")
+    await request_match(username, secrets.choice(punchlines), "habibti", logger, client)
+
+    data = {
+        "username" : username
+    }
+    profile_res = await client.post(f"/check_response.php", data=data)
+    assert_in("habibti".encode().hex(), profile_res.text, "hex of filename not found")
+
+    index_res = await client.get("/index.php")
+
+    logout_res = await client.get("/logout.php")
+    
+
 @checker.exploit(0)
 async def exploit_file_upload(task: ExploitCheckerTaskMessage,
                     searcher: FlagSearcher,

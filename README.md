@@ -1,17 +1,19 @@
 # enowars8-service-ImagiDate
 
 # TODOs
+* Make CSS a bit better
+
 ## php part
 * make the heart icon beat ;)
 * add volumes for images
 * add cleaner for images
+
 ## python part
 * add volumes for yaml files
 * add cleaner for yaml files
 
 ## checker part
-* implement some havoc functions
-
+* DONE
 ## misc
 * add extra account for fun ;)
 * https://github.com/cat-milk/Anime-Girls-Holding-Programming-Books/blob/master/Linux/Ryo_Yamada_Reading_ArchLinux_Book.jpg for Julian
