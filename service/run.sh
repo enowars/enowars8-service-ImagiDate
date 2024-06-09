@@ -5,10 +5,6 @@ while ! mysqladmin ping -h"db" --silent; do
     sleep 1
 done
 
+bash /root/cleaner.sh &
 
-
-#while true; do
-	#/service/cleanup.sh
-	#sleep 60
-#done &
 apache2-foreground

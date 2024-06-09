@@ -2,11 +2,11 @@
 
 # TODOs
 * Make CSS a bit better
+* Add ulimits and always restart flags
 
 ## php part
 * make the heart icon beat ;)
 * add volumes for images
-* add cleaner for images
 
 ## python part
 * add volumes for yaml files

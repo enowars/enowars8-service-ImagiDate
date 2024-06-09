@@ -20,7 +20,6 @@ REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'date'@'%';
 GRANT SELECT, INSERT ON date.* TO 'date'@'%';
 FLUSH PRIVILEGES;
 
--- change timer to 10 min after testing
 CREATE EVENT IF NOT EXISTS delete_old_users
 ON SCHEDULE EVERY 10 MINUTE
 DO
