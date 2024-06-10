@@ -5,18 +5,33 @@ services:
     build:
       context: .
     container_name: wcyd
+    volumes:
+      - profile_pic_store:/var/www/html/uploads
     ports:
       - "8080:80"
     depends_on:
       - db
-    
+    restart: "unless-stopped"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
 
   api:
     build:
       context: ./api
     container_name: api_server
+    volumes:
+      - yaml_store:/app/uploads
     expose:
       - "5000"
+    restart: "unless-stopped"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
     
   db:
     image: mysql:8.0
@@ -35,3 +50,5 @@ services:
 
 volumes:
   mysql_db:
+  yaml_store:
+  profile_pic_store:
