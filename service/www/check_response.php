@@ -38,11 +38,30 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <title>check response</title>
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles/match.css">
+    <style>
+        #heart {
+            animation: 1.5s ease 0s infinite beat;
+        }
+
+        @keyframes beat {
+
+            0%,
+            50%,
+            100% {
+                transform: scale(1, 1);
+            }
+
+            30%,
+            80% {
+                transform: scale(0.92, 0.95);
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="text-center">
         <a href="index.php">
-            <img class="mb-4" src="/images/logo.png" alt="" width="72" height="72">
+            <img class="mb-4" src="/images/logo.png" id="heart" alt="" width="72" height="72">
         </a>
         <h2>Match with your fav Person!</h2>
         <p class="lead">Submit your information and a punchline to your crush and see what they will say!</p>

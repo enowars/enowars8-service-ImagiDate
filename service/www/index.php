@@ -1,5 +1,6 @@
 <?php
 session_start();
+error_reporting(0);
 require_once 'config.php';
 
 if (isset($_SESSION["user_id"])) {
@@ -23,6 +24,25 @@ if (isset($_SESSION["user_id"])) {
     <title>ImagiDate</title>
     <link href="https://getbootstrap.com/docs/4.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="styles/index.css" rel="stylesheet">
+    <style>
+        #heart {
+            animation: 1.5s ease 0s infinite beat;
+        }
+
+        @keyframes beat {
+
+            0%,
+            50%,
+            100% {
+                transform: scale(1, 1);
+            }
+
+            30%,
+            80% {
+                transform: scale(0.92, 0.95);
+            }
+        }
+    </style>
 </head>
 
 <body class="text-center">
@@ -47,7 +67,7 @@ if (isset($_SESSION["user_id"])) {
 
         <main role="main" class="inner cover">
             <a href="index.php">
-                <img class="mb-4" src="/images/logo.png" alt="" width="144" height="144">
+                <img class="mb-4" src="/images/logo.png" alt="" id="heart" width="144" height="144">
             </a>
             <h1 class="cover-heading">Welcome to ImagiDate!</h1>
             <p class="lead">Here you can finally get to date your fav fictional character! What are you waiting for? go

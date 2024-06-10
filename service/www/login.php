@@ -1,5 +1,6 @@
 <?php
 session_start();
+error_reporting(0);
 require_once 'config.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -36,12 +37,31 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <title>Login</title>
     <link href="https://getbootstrap.com/docs/4.0/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
     <link href="styles/login.css" rel="stylesheet">
+    <style>
+        #heart {
+            animation: 1.5s ease 0s infinite beat;
+        }
+
+        @keyframes beat {
+
+            0%,
+            50%,
+            100% {
+                transform: scale(1, 1);
+            }
+
+            30%,
+            80% {
+                transform: scale(0.92, 0.95);
+            }
+        }
+    </style>
 </head>
 
 <body class="text-center">
     <form class="form-signin" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="post">
         <a href="index.php">
-            <img class="mb-4" src="/images/logo.png" alt="" width="72" height="72">
+            <img class="mb-4" src="/images/logo.png" id="heart" alt="" width="72" height="72">
         </a>
         <h1 class="h3 mb-3 font-weight-normal">Login</h1>
         <label for="username" class="sr-only">Username</label>

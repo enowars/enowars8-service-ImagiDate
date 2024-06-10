@@ -1,4 +1,5 @@
 <?php
+error_reporting(0);
 define('DB_SERVER', 'db');
 define('DB_USERNAME', 'date');
 define('DB_PASSWORD', 'somepassword');

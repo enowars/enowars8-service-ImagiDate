@@ -1,5 +1,6 @@
 <?php
 session_start();
+error_reporting(0);
 require_once 'config.php';
 
 if (isset($_SESSION["user_id"])) {
@@ -48,6 +49,23 @@ $current_profiles = array_slice($profiles, $offset, $limit);
         .table-container {
             margin: auto;
         }
+        #heart {
+            animation: 1.5s ease 0s infinite beat;
+        }
+
+        @keyframes beat {
+
+            0%,
+            50%,
+            100% {
+                transform: scale(1, 1);
+            }
+
+            30%,
+            80% {
+                transform: scale(0.92, 0.95);
+            }
+        }
     </style>
 </head>
 
@@ -67,7 +85,7 @@ $current_profiles = array_slice($profiles, $offset, $limit);
 
         <main role="main" class="inner cover">
             <a href="index.php">
-                <img class="mb-4" src="/images/logo.png" alt="" width="72" height="72">
+                <img class="mb-4" src="/images/logo.png" id="heart" alt="" width="72" height="72">
             </a>
             <h1 class="cover-heading">List of users</h1>
             <div class="table-responsive table-container">

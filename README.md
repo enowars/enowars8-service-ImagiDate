@@ -3,7 +3,6 @@
 # TODOs
 
 ## php part
-* make the heart icon beat ;)
 * Make CSS a bit better
 
 ## python part
