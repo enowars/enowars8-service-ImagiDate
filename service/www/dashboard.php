@@ -76,7 +76,7 @@ $current_profiles = array_slice($profiles, $offset, $limit);
             <div class="inner">
                 <h3 class="masthead-brand">ImagiDate</h3>
                 <nav class="nav nav-masthead justify-content-center">
-                    <a class="nav-link active" href="index.php">Homepage</a>
+                    <a class="nav-link" href="index.php">Homepage</a>
                     <a class="nav-link" href='profile.php?id=<?php echo $user_id; ?>'>Profile</a>
                     <a class="nav-link" href="logout.php">Logout</a>
                 </nav>

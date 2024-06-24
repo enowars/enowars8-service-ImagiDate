@@ -6,9 +6,10 @@ if (!isset($_SESSION["user_id"])) {
     exit();
 }
 
-function yaml_dump(array $data){
+function yaml_dump(array $data)
+{
     $result = "";
-    foreach ($data as $key => $value){
+    foreach ($data as $key => $value) {
         $result .= "$key: $value\n";
     }
     return $result;
@@ -21,14 +22,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $requested_username = $_POST["requested_username"];
     $punchline = $_POST["punchline"];
 
-    if($username != $_SESSION["username"]){
+    if ($username != $_SESSION["username"]) {
         echo "You need to provide your actual username, not some random shit";
         exit();
     }
 
     $ALLOWED_LEN = 20;
-    if(strlen($username) > $ALLOWED_LEN || strlen($gender) > $ALLOWED_LEN
-    || strlen($requested_username) > $ALLOWED_LEN){
+    if (
+        strlen($username) > $ALLOWED_LEN || strlen($gender) > $ALLOWED_LEN
+        || strlen($requested_username) > $ALLOWED_LEN
+    ) {
         echo "Your Input seems to be wrong. Some parameter was too large";
         exit();
     }
@@ -42,9 +45,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     ];
 
     $yaml = yaml_dump($data);
-    if(isset($_POST["custom_filename"])){
+    if (isset($_POST["custom_filename"])) {
         $yaml_file = 'uploads/' . bin2hex($_POST["custom_filename"]) . ".yaml";
-    }else{
+    } else {
         $yaml_file = 'uploads/data.yaml';
     }
     file_put_contents($yaml_file, $yaml);
@@ -72,6 +75,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -98,6 +102,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
     </style>
 </head>
+
 <body>
     <div class="text-center">
         <a href="index.php">
@@ -106,20 +111,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <h2>Match with your fav Person!</h2>
         <p class="lead">Submit your information and a punchline to your crush and see what they will say!</p>
         <form id="yamlForm" action="" class="form-signin" method="POST" enctype="multipart/form-data">
-            
+
             <label for="username" class="sr-only">Username</label>
-            <input type="text" class="form-control" id="username" name="username" placeholder="Username" maxlength="20" required>
+            <input type="text" class="form-control" id="username" name="username" placeholder="Username" maxlength="20"
+                required>
             <label for="age" class="sr-only">Age</label>
             <input type="number" class="form-control" id="age" name="age" placeholder="Age" required>
             <label for="gender" class="sr-only">Gender</label>
-            <input type="text" class="form-control" id="gender" name="gender" placeholder="Gender" maxlength="20" required>
+            <select id="gender" name="gender" class="form-control">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+            </select>
             <label for="requested_username" class="sr-only">Requested Username</label>
-            <input type="text" class="form-control" id="requested_username" name="requested_username" placeholder="Username of your crush" maxlength="20" required>
+            <input type="text" class="form-control" id="requested_username" name="requested_username"
+                placeholder="Username of your crush" maxlength="20" required>
             <label for="punchline" class="sr-only">Punchline</label>
-            <textarea type="text" class="form-control" id="punchline" name="punchline" placeholder="Your punchline" required></textarea>
+            <textarea type="text" class="form-control" id="punchline" name="punchline" placeholder="Your punchline"
+                required></textarea>
             <br>
             <button type="submit" class="btn btn-lg btn-primary btn-block">Submit</button>
-            <?php if($show_resp): ?>
+            <?php if ($show_resp): ?>
                 <a href='check_response.php'>Data sent succesfully! Checkout your crushes reponse!</a>
             <?php endif; ?>
         </form>
@@ -129,4 +141,5 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
+
 </html>

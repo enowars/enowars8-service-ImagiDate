@@ -52,7 +52,7 @@ if (isset($_SESSION["user_id"])) {
             <div class="inner">
                 <h3 class="masthead-brand">ImagiDate</h3>
                 <nav class="nav nav-masthead justify-content-center">
-                    <a class="nav-link active" href="">About</a>
+                    <a class="nav-link active" href="">Homepage</a>
                     <?php if ($logged_in): ?>
                         <a class="nav-link" href='profile.php?id=<?php echo $user_id; ?>'>Profile</a>
                         <a class="nav-link" href="logout.php">Logout</a>
