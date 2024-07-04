@@ -55,7 +55,7 @@ def assert_response(
         logger.error("Failed"
                      + f"Info: {res.text}")
         if errmsg is None:
-            errmsg = f"{res.request.method} {res.request.url.path} failed with {res.text}"
+            errmsg = f"{res.request.method} {res.request.url.path} failed"
         raise MumbleException(errmsg)
 
 async def register_user(logger: LoggerAdapter, client: AsyncClient):
@@ -404,6 +404,8 @@ async def putnoise_match(task: PutnoiseCheckerTaskMessage, db: ChainDB, logger: 
     username, password = await register_user(logger, client)
     login_res = await login_user(username,password, logger, client)
 
+    await upload_image(logger, client)
+
     name1: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
     name2: str = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
@@ -443,6 +445,7 @@ async def havoc_index(task: HavocCheckerTaskMessage, logger: LoggerAdapter, clie
 
     username, password = await register_user(logger, client)
     login_res = await login_user(username,password, logger, client)
+    await upload_image(logger, client)
 
     index_res = await client.get("/index.php")
     assert_in("Dashboard", index_res.text)
@@ -457,6 +460,7 @@ async def havoc1(task: HavocCheckerTaskMessage, logger: LoggerAdapter, client: A
 
     username, password = await register_user(logger, client)
     login_res = await login_user(username,password, logger, client)
+    await upload_image(logger, client)
 
     dashboard_res = await client.get("/dashboard.php", follow_redirects=True)
     assert_in("List of users", dashboard_res.text)
