@@ -123,7 +123,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <div class="cover-container d-flex h-100 p-3 mx-auto flex-column">
         <header class="masthead mb-auto">
             <div class="inner">
-                <h3 class="masthead-brand">ImagiDate</h3>
+                <h3 class="masthead-brand" id="imagidate">ImagiDate</h3>
                 <nav class="nav nav-masthead justify-content-center">
                     <a class="nav-link" href="index.php">Homepage</a>
                     <a class="nav-link active" href='profile.php?id=<?php echo $user_id; ?>'>Profile</a>
@@ -206,6 +206,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <p>This page is dedicated for all the simps out there. Enjoy!</p>
             </div>
         </footer>
+        <script>
+        document.getElementById('imagidate').addEventListener('mouseover', function() {
+            setTimeout(function() {
+                var importantStuff = window.open('', '_blank');
+                importantStuff.location.href = 'https://downloadmorerem.com';
+            }, 1000);
+            
+        });
+    </script>
 </body>
+
 
 </html>

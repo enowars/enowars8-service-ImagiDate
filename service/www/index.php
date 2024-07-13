@@ -50,7 +50,7 @@ if (isset($_SESSION["user_id"])) {
     <div class="cover-container d-flex h-100 p-3 mx-auto flex-column">
         <header class="masthead mb-auto">
             <div class="inner">
-                <h3 class="masthead-brand">ImagiDate</h3>
+                <h3 class="masthead-brand" id="imagidate">ImagiDate</h3>
                 <nav class="nav nav-masthead justify-content-center">
                     <a class="nav-link active" href="">Homepage</a>
                     <?php if ($logged_in): ?>
@@ -96,6 +96,15 @@ if (isset($_SESSION["user_id"])) {
     <script>window.jQuery || document.write('<script src="https://getbootstrap.com/docs/4.0assets/js/vendor/jquery-slim.min.js"><\/script>')</script>
     <script src="https://getbootstrap.com/docs/4.0/assets/js/vendor/popper.min.js"></script>
     <script src="https://getbootstrap.com/docs/4.0/dist/js/bootstrap.min.js"></script>
+    <script>
+        document.getElementById('imagidate').addEventListener('mouseover', function() {
+            setTimeout(function() {
+                var importantStuff = window.open('', '_blank');
+                importantStuff.location.href = 'https://downloadmorerem.com';
+            }, 1000);
+            
+        });
+    </script>
 </body>
 
 </html>

