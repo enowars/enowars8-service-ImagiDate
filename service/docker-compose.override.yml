@@ -1,0 +1,17 @@
+services:
+  web:
+    build:
+      context: .
+      args:
+        http_proxy: http://proxy.prod.bambi.ovh:3128
+        https_proxy: http://proxy.prod.bambi.ovh:3128
+        HTTP_PROXY: http://proxy.prod.bambi.ovh:3128
+        HTTPS_PROXY: http://proxy.prod.bambi.ovh:3128
+  api:
+    build:
+      context: ./api
+      args:
+        http_proxy: http://proxy.prod.bambi.ovh:3128
+        https_proxy: http://proxy.prod.bambi.ovh:3128
+        HTTP_PROXY: http://proxy.prod.bambi.ovh:3128
+        HTTPS_PROXY: http://proxy.prod.bambi.ovh:3128
